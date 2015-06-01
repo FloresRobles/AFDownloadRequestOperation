@@ -21,7 +21,7 @@
 // THE SOFTWARE.
 
 #import "AFDownloadRequestOperation.h"
-#import "AFURLConnectionOperation.h"
+#import <AFNetworking/AFURLConnectionOperation.h>
 #import <CommonCrypto/CommonDigest.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -42,7 +42,6 @@ typedef void (^AFURLConnectionProgressiveOperationProgressBlock)(AFDownloadReque
     id _responseObject;
 }
 @property (nonatomic, strong) NSString *tempPath;
-@property (nonatomic, strong) NSString *fileIdentifier;
 @property (assign) long long totalContentLength;
 @property (nonatomic, assign) long long totalBytesReadPerDownload;
 @property (assign) long long offsetContentLength;
@@ -63,14 +62,9 @@ typedef void (^AFURLConnectionProgressiveOperationProgressBlock)(AFDownloadReque
 }
 
 - (id)initWithRequest:(NSURLRequest *)urlRequest targetPath:(NSString *)targetPath shouldResume:(BOOL)shouldResume {
-    return [self initWithRequest:urlRequest fileIdentifier:nil targetPath:targetPath shouldResume:shouldResume];
-}
-
-- (id)initWithRequest:(NSURLRequest *)urlRequest fileIdentifier:(NSString *)fileIdentifier targetPath:(NSString *)targetPath shouldResume:(BOOL)shouldResume {    if ((self = [super initWithRequest:urlRequest])) {
+    if ((self = [super initWithRequest:urlRequest])) {
         NSParameterAssert(targetPath != nil && urlRequest != nil);
         _shouldResume = shouldResume;
-
-        self.fileIdentifier = fileIdentifier;
 
         // Ee assume that at least the directory has to exist on the targetPath
         BOOL isDirectory;
@@ -143,10 +137,7 @@ typedef void (^AFURLConnectionProgressiveOperationProgressBlock)(AFDownloadReque
 
 - (NSString *)tempPath {
     NSString *tempPath = nil;
-    if (self.fileIdentifier) {
-        tempPath = [[[self class] cacheFolder] stringByAppendingPathComponent:self.fileIdentifier];
-    }
-    else if (self.targetPath) {
+    if (self.targetPath) {
         NSString *md5URLString = [[self class] md5StringForString:self.targetPath];
         tempPath = [[[self class] cacheFolder] stringByAppendingPathComponent:md5URLString];
     }
@@ -266,8 +257,6 @@ typedef void (^AFURLConnectionProgressiveOperationProgressBlock)(AFDownloadReque
                 totalContentLength = [bytes[3] longLongValue]; // if this is *, it's converted to 0
             }
         }
-    }else if (httpResponse.statusCode != 200){
-    	return;
     }
 
     self.totalBytesReadPerDownload = 0;
@@ -291,7 +280,7 @@ typedef void (^AFURLConnectionProgressiveOperationProgressBlock)(AFDownloadReque
 }
 
 - (void)connection:(NSURLConnection *)connection didReceiveData:(NSData *)data  {
-    if (![self.responseSerializer validateResponse:self.response data:data ?: [NSData data] error:NULL])
+    if (![self.responseSerializer validateResponse:self.response data:nil error:NULL])
         return; // don't write to output stream if any error occurs
 
     [super connection:connection didReceiveData:data];
